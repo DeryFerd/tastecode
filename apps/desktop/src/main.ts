@@ -320,7 +320,13 @@ function startOwnedServer(): void {
       ? new ServerSupervisor({
           command: process.execPath,
           args: [serverEntry],
-          env: { ...process.env, ELECTRON_RUN_AS_NODE: '1', PATH: desktopPath() },
+          cwd: productDataPath,
+          env: {
+            ...process.env,
+            PWD: productDataPath,
+            ELECTRON_RUN_AS_NODE: '1',
+            PATH: desktopPath(),
+          },
           ...supervisorCallbacks,
         })
       : new ServerSupervisor({
@@ -333,7 +339,10 @@ function startOwnedServer(): void {
 
 function launchUtilityServer(serverEntry: string): SupervisedServerProcess {
   const child = utilityProcess.fork(serverEntry, [], {
-    env: { ...process.env },
+    // Finder/terminal launches may inherit a DMG or external-drive directory.
+    // Background provider probes must start in app storage, not that directory.
+    cwd: productDataPath,
+    env: { ...process.env, PWD: productDataPath },
     serviceName: 'Taste Code Core Server',
     stdio: 'pipe',
   })
@@ -885,6 +894,7 @@ if (ownsSingleInstance) {
 
   void app.whenReady().then(async () => {
     logStartupMilestone('app-ready')
+    await mkdir(productDataPath, { recursive: true, mode: 0o700 })
     const diagnosticsDirectory = path.join(app.getPath('userData'), 'diagnostics')
     diagnostics = new LocalDiagnostics(diagnosticsDirectory, () => {
       app.setPath('crashDumps', diagnosticsDirectory)
