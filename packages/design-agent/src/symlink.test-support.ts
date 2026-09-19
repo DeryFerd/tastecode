@@ -16,8 +16,14 @@ export function canCreateSymlinks(): boolean {
     writeFileSync(target, '')
     symlinkSync(target, path.join(root, 'link'))
     return true
-  } catch {
-    return false
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      'code' in error &&
+      ['EPERM', 'EACCES', 'ENOSYS', 'ENOTSUP'].includes(String(error.code))
+    )
+      return false
+    throw error
   } finally {
     rmSync(root, { recursive: true, force: true })
   }
